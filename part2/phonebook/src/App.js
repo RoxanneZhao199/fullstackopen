@@ -64,12 +64,20 @@ const App = () => {
           setPersons(persons.concat(returnedPerson))
           setNewName('')
           setNewNumber('')
-        })
-        setTimeout(() => {
           setStyle('message')
           setMessage(`Added ${newName}`)
-          console.log(style)
-        }, 3000)
+        })
+        .catch(error => {
+          console.log(error.response.data.error)
+          setStyle('error')
+          setMessage(`${error.response.data.error}`)
+        })
+        // setTimeout(() => {
+        //   setStyle('message')
+        //   setMessage(`Added ${newName}`)
+        //   console.log(style)
+        // }, 3000)
+
     }
   }
 

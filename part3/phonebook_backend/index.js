@@ -1,106 +1,107 @@
+require('dotenv').config()
+
 const express = require('express')
 const morgan = require('morgan')
 const cors = require('cors')
 
 const app = express()
+const Phonebook = require('./models/phonebook')
 
 app.use(express.json())
 app.use(cors())
-app.use(express.static('build'))
 
-morgan.token('body', function (req, res) {
+morgan.token('body', function (req) {
   return JSON.stringify(req.body)
 })
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'));
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'))
 
-let persons = [
-  {
-    "id": 1,
-    "name": "Arto Hellas",
-    "number": "040-123456"
-  },
-  {
-    "id": 2,
-    "name": "Ada Lovelace",
-    "number": "39-44-5323523"
-  },
-  {
-    "id": 3,
-    "name": "Dan Abramov",
-    "number": "12-43-234345"
-  },
-  {
-    "id": 4,
-    "name": "Mary Poppendieck",
-    "number": "39-23-6423122"
-  }
-]
 
-app.get('/', (request, response) => {
-  response.send('<h1>Hello World!</h1>')
-})
-
+/******************** GET *********************/
 app.get('/api/persons', (request, response) => {
-  response.json(persons)
+  Phonebook.find({}).then(phonebooks => {
+    response.json(phonebooks)
+  })
 })
 
 app.get('/api/info', (request, response) => {
-  const num = persons.length
-
-  response.send(`
-  <p>Phonebook has infor for ${num} people</p>
-  <p>${new Date()}</p>
-  `)
+  Phonebook.find({}).then(phonebooks => {
+    // console.log(typeof(phonebooks.length));
+    response.send(`
+      <p>Phonebook has infor ${phonebooks.length} for people</p>
+      <p>${new Date()}</p>
+    `)
+  })
 })
 
 app.get('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
-  const person = persons.find(person => person.id === id)
-
-  if (person) {
-    response.json(person)
-  } else {
-    response.status(404).end()
-  }
+  Phonebook.findById(request.params.id).then(phonebook => {
+    response.json(phonebook)
+  })
 })
 
-app.delete('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
-  persons = persons.filter(person => person.id !== id)
+/******************** POST *********************/
+app.post('/api/persons', (request, response, next) => {
+  const body = request.body
 
-  response.status(204).end()
-})
-
-const generateId = () => {
-  const id = Math.floor((Math.random() * 100) + 1)
-  return id
-}
-
-app.post('/api/persons', (request, response) => {
-  const body = JSON.stringify(request.body)
-
-  if (!body.name || !body.number) {
-    return response.status(400).json({
-      error: 'name or number missing'
-    })
-  }
-  // else if (persons.map(person => person.name === body.name)) {
+  // if (!body.name || !body.number) {
   //   return response.status(400).json({
-  //     error: 'name must be unique'
+  //     error: 'name or number missing'
   //   })
   // }
-
-  const person = {
-    name: body.name,
-    number: body.number,
-    id: generateId()
+  if (Phonebook.find({}).then(phonebooks => {
+    phonebooks.some(obj => obj.name === body.name)
+  })) {
+    return response.status(400).json({
+      error: `${body.name} is already in to phonebook`
+    })
   }
 
-  persons = persons.concat(person)
-  response.json(person)
+  const phonebook = new Phonebook({
+    name: body.name,
+    number: body.number || false,
+    date: new Date(),
+  })
+
+  phonebook.save()
+    .then(savedNote => {
+      response.json(savedNote)
+    })
+    .catch(error => next(error))
 })
 
-const PORT = process.env.PORT || 3001
+/******************** PUT *********************/
+app.put('api/persons/:id', (request, response, next) => {
+  const { name, number } = request.body
+
+  Phonebook.findByIdAndUpdate(request.params.id, { name, number }, { new: true, runValidators: true, context: 'query' })
+    .then(updatedPhonebook => {
+      response.json(updatedPhonebook)
+    })
+    .catch(error => next(error))
+})
+
+/******************** DELETE *********************/
+app.delete('/api/persons/:id', (request, response, next) => {
+  Phonebook.findByIdAndRemove(request.params.id)
+    .then(() => {
+      response.status(204).end()
+    })
+    .catch(error => next(error))
+})
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message })
+  }
+  next(error)
+}
+app.use(errorHandler)
+
+const PORT = process.env.PORT
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`)
 })
