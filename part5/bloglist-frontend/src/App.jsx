@@ -4,6 +4,8 @@ import BlogForm from './components/BlogForm'
 import NotificationMessage from './components/NotificationMessage'
 import blogService from './services/blogs'
 import loginService from './services/login'
+import { NotificationProvider} from './contexts/notificationContext';
+import Users from './components/Users';
 
 const App = () => {
   const [blogs, setBlogs] = useState([])
@@ -39,6 +41,16 @@ const App = () => {
       blogService.setToken(user.token);
     }
   }, []);
+
+  const showNotification = (message, type = 'success') => {
+    dispatch({
+      type: SET_NOTIFICATION,
+      payload: { message, type }
+    });
+    setTimeout(() => {
+      dispatch({ type: CLEAR_NOTIFICATION });
+    }, 5000);
+  };
 
   const handleLogin = async (event) => {
     event.preventDefault()
@@ -129,20 +141,12 @@ const App = () => {
     </div>
   )
 
-  const showNotification = (message, type = 'success') => {
-    setNotification(message);
-    setNotificationType(type);
-    setTimeout(() => {
-      setNotification(null);
-    }, 5000); // Hide notification after 5 seconds
-  };
-
   const toggleFormVisibility = () => {
   setShowForm(!showForm);
   };
 
   return (
-    <div>
+    <NotificationProvider>
       <h2>Blogs</h2>
       <NotificationMessage message={notification} type={notificationType} />
       {!user && loginForm()}
@@ -159,9 +163,10 @@ const App = () => {
             </div>
           )}
             <Blogs blogs={blogs} onLike={handleLike} onDelete={handleDelete} currentUser={user}/>
+            <Users />
           </div>
         }
-    </div>
+    </NotificationProvider>
   )
 }
 

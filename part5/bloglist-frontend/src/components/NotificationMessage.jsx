@@ -1,7 +1,13 @@
-const NotificationMessage = ({ message, type }) => {
-  if (message === null) {
+import { useNotification } from '../contexts/notificationContext';
+
+const NotificationMessage = () => {
+  const { state: notificationState  } = useNotification();
+
+  if (!notificationState || !notificationState.message) {
     return null;
   }
+
+  const { type, message } = notificationState;
 
   const notificationStyle = {
     color: type === 'success' ? 'green' : 'red',
@@ -15,7 +21,7 @@ const NotificationMessage = ({ message, type }) => {
 
   return (
     <div style={notificationStyle}>
-      {message}
+      {notificationState.message}
     </div>
   );
 };
